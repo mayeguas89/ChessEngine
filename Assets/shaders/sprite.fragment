@@ -1,0 +1,19 @@
+#version 330 core
+
+uniform sampler2D image;
+uniform int active;
+
+in vec2 TexCoordinate;
+
+out vec4 colorOut;
+
+void main()
+{
+  vec3 colorMix = vec3(1.f, 0.f, 0.f);
+  colorOut = texture(image, TexCoordinate);
+  if(active == 1)
+  {
+    vec3 theColor = mix(colorOut.xyz, colorMix, 0.5f);
+    colorOut = vec4(theColor, colorOut.a);
+  }
+}
