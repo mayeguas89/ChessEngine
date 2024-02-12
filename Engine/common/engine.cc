@@ -61,8 +61,8 @@ void Engine::Init()
   // Attach frame buffer
   CreateFrameBufferAndAttachToRenderTexture(frameBufferId_, render.GetWindowSize(), textureId_);
 
-  auto board = std::make_shared<chess::Board>();
-  entities_.push_back(std::move(board));
+  board_ = std::make_shared<chess::Board>();
+  entities_.push_back(board_);
 
   stateMachine_.ChangeState(std::move(std::make_unique<CalibrationState>(stateMachine_)));
 
@@ -126,36 +126,137 @@ void Engine::ResizeFrameBuffer(const glm::vec<2, int>& windowSize)
 
 void Engine::RayTest(const glm::vec2& worldCoordinates)
 {
-  // Check if inside the board
+  // Check here if calibration is done
   if (calibrationCoordinates_ == glm::vec2(0.f, 0.f))
     return;
+
+  // Check if inside the y coordinates
+  if (worldCoordinates.y > calibrationCoordinates_.y || worldCoordinates.y < -0.1f)
+  {
+    auto& thePlayer = (currentPlayer == Color::Black) ? playerBlack_ : playerWhite_;
+    std::for_each(thePlayer.pieces_.begin(), thePlayer.pieces_.end(), [](auto& piece) { piece->active_ = false; });
+    return;
+  }
+
   // 0,0 are calibrationCoordinates_
-  auto newWorldCoordinates = glm::abs(worldCoordinates - calibrationCoordinates_);
+  auto newWorldCoordinates = worldCoordinates - calibrationCoordinates_;
+  newWorldCoordinates.y = std::abs(newWorldCoordinates.y);
   spdlog::info("Transformed coordinates: ({},{})", newWorldCoordinates.x, newWorldCoordinates.y);
+
+  auto& thePlayer = (currentPlayer == Color::Black) ? playerBlack_ : playerWhite_;
+  auto& otherPlayer = (currentPlayer == Color::Black) ? playerWhite_ : playerBlack_;
+  std::for_each(thePlayer.pieces_.begin(), thePlayer.pieces_.end(), [](auto& piece) { piece->active_ = false; });
+
+  // Store the selected piece
+  static std::shared_ptr<chess::Piece> theSelectedPiece;
+  if (theSelectedPiece)
+    theSelectedPiece->active_ = true;
+
+  // Check if inside the board
   if (newWorldCoordinates.x > -0.1f && newWorldCoordinates.x < 8.1f && newWorldCoordinates.y > -0.1f
       && newWorldCoordinates.y < 8.1f)
   {
     // Hit in the board
     spdlog::info("Hit on the board");
-    auto& thePlayer = (currentPlayer == Color::Black) ? playerBlack_ : playerWhite_;
+
+    // Check for pieces
     for (auto& piece: thePlayer.pieces_)
     {
-      auto thePiece = dynamic_cast<chess::Piece*>(piece.get());
-      const glm::vec2 boardPosition = thePiece->boardPosition;
+      const glm::vec2 boardPosition = piece->boardPosition;
       // spdlog::info("Check on Piece {}: ({},{}) with ({},{})",
       //              piece->GetName(),
       //              boardPosition.x,
       //              boardPosition.y,
       //              worldCoordinates.x + 0.5f,
       //              worldCoordinates.y - 0.25f);
+
       if (boardPosition.x + 1.f > newWorldCoordinates.x && boardPosition.x <= newWorldCoordinates.x
           && boardPosition.y + 1.f > newWorldCoordinates.y && boardPosition.y <= newWorldCoordinates.y)
       {
         spdlog::info("Hit on Piece {}", piece->GetName());
-        thePiece->active_ = true;
+        theSelectedPiece = piece;
+        theSelectedPiece->active_ = true;
+        // Get all posible movements
+        auto tempPositions = theSelectedPiece->GetMovementsPosition();
+        for (const auto& pos: tempPositions)
+        {
+          // If out of the board do not draw the tile
+          if (pos.x < 0 || pos.x > 7 || pos.y < 0 || pos.y > 7)
+            continue;
+
+          // Check collision with own pieces
+          auto itOwnPiece = std::find_if(thePlayer.pieces_.begin(),
+                                         thePlayer.pieces_.end(),
+                                         [&pos](const auto& piece)
+                                         {
+                                           const auto& piecePos = piece.get()->boardPosition;
+                                           return piecePos.x == pos.x && piecePos.y == pos.y;
+                                         });
+          if (itOwnPiece != thePlayer.pieces_.end())
+            continue;
+
+          // Find them in the board
+          auto itBoardTile = std::find_if(board_->tiles.begin(),
+                                          board_->tiles.end(),
+                                          [&pos](const auto& tile)
+                                          {
+                                            const auto& tilePos = tile.get()->boardPosition_;
+                                            //  tilePos.y = std::abs(tilePos.y - 7);
+                                            return tilePos.x == pos.x && tilePos.y == pos.y;
+                                          });
+          if (itBoardTile == board_->tiles.end())
+            continue;
+
+          // Activate the tile as possible movement
+          itBoardTile->get()->active_ = true;
+        }
+        // If hit a piece do not do anything else
+        return;
       }
-      else
-        thePiece->active_ = false;
     }
+
+    // Check if there is a selected piece
+    if (theSelectedPiece)
+    {
+      // Check for tiles with active
+      auto itBoardTile = std::find_if(board_->tiles.begin(),
+                                      board_->tiles.end(),
+                                      [&newWorldCoordinates](const auto& tile)
+                                      {
+                                        const auto& tilePos = tile.get()->boardPosition_;
+                                        //  tilePos.y = std::abs(tilePos.y - 7);
+                                        if (tile.get()->active_)
+                                        {
+                                          spdlog::info("Check mousePos ({},{}) on tile ({},{})",
+                                                       newWorldCoordinates.x,
+                                                       newWorldCoordinates.y,
+                                                       tilePos.x,
+                                                       tilePos.y);
+                                        }
+                                        return tile.get()->active_ && tilePos.x + 1.f > newWorldCoordinates.x
+                                               && tilePos.x <= newWorldCoordinates.x
+                                               && tilePos.y + 1.f > newWorldCoordinates.y
+                                               && tilePos.y <= newWorldCoordinates.y;
+                                      });
+      if (itBoardTile == board_->tiles.end())
+        return;
+
+      // Move the piece to that position
+      theSelectedPiece->SetBoardPosition(itBoardTile->get()->boardPosition_);
+      theSelectedPiece->active_ = false;
+      theSelectedPiece.reset();
+      std::for_each(board_->tiles.begin(), board_->tiles.end(), [](auto& tile) { tile->active_ = false; });
+    }
+    else
+    {
+      // Restart all tiles to the false status
+      std::for_each(board_->tiles.begin(), board_->tiles.end(), [](auto& tile) { tile->active_ = false; });
+    }
+  }
+  else
+  {
+    theSelectedPiece.reset();
+    // Restart all tiles to the false status
+    std::for_each(board_->tiles.begin(), board_->tiles.end(), [](auto& tile) { tile->active_ = false; });
   }
 }

@@ -86,10 +86,31 @@ void Piece::Update()
   Entity::Update();
 }
 
+void Piece::SetBoardPosition(const glm::vec<2, int>& position)
+{
+  boardPosition = position;
+  position_.x = position.x;
+  position_.y = 7 - position.y;
+}
+
 Pawn::Pawn(const std::string& textureFile, const Color color):
   Piece(textureFile, (color == Color::White) ? wSpriteView : bSpriteView)
 {
   name_ = "Pawn";
+}
+
+std::vector<glm::vec<2, int>> Pawn::GetMovementsPosition()
+{
+  // Pawn can move OneUp
+  std::vector<glm::vec<2, int>> positions;
+  positions.push_back({boardPosition.x, boardPosition.y + 1});
+  // move TwoUp if firstTime
+  positions.push_back({boardPosition.x, boardPosition.y + 2});
+  // Pawn can move OneUp and One Left for capturing
+  positions.push_back({boardPosition.x + 1, boardPosition.y + 1});
+  // Pawn can move OneUp and One Left for capturing
+  positions.push_back({boardPosition.x - 1, boardPosition.y + 1});
+  return positions;
 }
 
 Bishop::Bishop(const std::string& textureFile, const Color color):
@@ -98,10 +119,20 @@ Bishop::Bishop(const std::string& textureFile, const Color color):
   name_ = "Bishop";
 }
 
+std::vector<glm::vec<2, int>> Bishop::GetMovementsPosition()
+{
+  return std::vector<glm::vec<2, int>>();
+}
+
 Rock::Rock(const std::string& textureFile, const Color color):
   Piece(textureFile, (color == Color::White) ? wSpriteView : bSpriteView)
 {
   name_ = "Rock";
+}
+
+std::vector<glm::vec<2, int>> Rock::GetMovementsPosition()
+{
+  return std::vector<glm::vec<2, int>>();
 }
 
 Queen::Queen(const std::string& textureFile, const Color color):
@@ -110,16 +141,52 @@ Queen::Queen(const std::string& textureFile, const Color color):
   name_ = "Queen";
 }
 
+std::vector<glm::vec<2, int>> Queen::GetMovementsPosition()
+{
+  return std::vector<glm::vec<2, int>>();
+}
+
 King::King(const std::string& textureFile, const Color color):
   Piece(textureFile, (color == Color::White) ? wSpriteView : bSpriteView)
 {
   name_ = "King";
 }
 
+std::vector<glm::vec<2, int>> King::GetMovementsPosition()
+{
+  return std::vector<glm::vec<2, int>>();
+}
+
 Knight::Knight(const std::string& textureFile, const Color color):
   Piece(textureFile, (color == Color::White) ? wSpriteView : bSpriteView)
 {
   name_ = "Knight";
+}
+
+std::vector<glm::vec<2, int>> Knight::GetMovementsPosition()
+{
+  std::vector<glm::vec<2, int>> positions;
+  // Knight can move two up one left
+  positions.push_back({boardPosition.x - 1, boardPosition.y + 2});
+  // Knight can move two down one left
+  positions.push_back({boardPosition.x - 1, boardPosition.y - 2});
+
+  // Knight can move two up one right
+  positions.push_back({boardPosition.x + 1, boardPosition.y + 2});
+  // Knight can move two down one right
+  positions.push_back({boardPosition.x + 1, boardPosition.y - 2});
+
+  // Knight can move one up two left
+  positions.push_back({boardPosition.x - 2, boardPosition.y + 1});
+  // Knight can move one down two left
+  positions.push_back({boardPosition.x - 2, boardPosition.y - 1});
+
+  // Knight can move one up two right
+  positions.push_back({boardPosition.x + 2, boardPosition.y + 1});
+  // Knight can move one down two right
+  positions.push_back({boardPosition.x + 2, boardPosition.y - 1});
+
+  return positions;
 }
 
 Tile::Tile(const glm::vec4& color): Entity()
@@ -159,6 +226,7 @@ void Tile::Draw()
   program_.Use();
   program_.SetVertextAttribArray("vertexPosition", 4, GL_FLOAT, sizeof(Vertex), (void*)0x00);
   program_.SetVertextAttribArray("color", 4, GL_FLOAT, sizeof(Vertex), (void*)(sizeof(glm::vec4)));
+  program_.SetBool("active", active_);
   program_.SetUniformMat4("Model", GetModelMatrix());
   // Set Common stuff like camera matrix
   // program_.SetVariables();
@@ -185,6 +253,7 @@ Board::Board(): Entity()
                   auto tile = std::make_shared<Tile>(color);
                   tile->SetScale({1.f, 1.f, 1.f, 0.f});
                   tile->SetPosition(glm::vec4(x, y, 0.f, 1.f));
+                  tile->boardPosition_ = {x, std::abs(y - 7)};
                   n++;
                   return std::move(tile);
                 });

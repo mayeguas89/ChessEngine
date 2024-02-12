@@ -39,10 +39,19 @@ public:
   virtual void End() override;
 };
 
-class PlayerOneState: public State
+class PlayerOneSelectPieceState: public State
 {
 public:
-  PlayerOneState(StateMachine& p_stateMachine): State(p_stateMachine) {}
+  PlayerOneSelectPieceState(StateMachine& p_stateMachine): State(p_stateMachine) {}
+  virtual void Init() override;
+  virtual void Run() override;
+  virtual void End() override;
+};
+
+class PlayerOneSelectDestinationState: public State
+{
+public:
+  PlayerOneSelectDestinationState(StateMachine& p_stateMachine): State(p_stateMachine) {}
   virtual void Init() override;
   virtual void Run() override;
   virtual void End() override;

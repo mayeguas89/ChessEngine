@@ -3,7 +3,10 @@
 void StateMachine::ChangeState(std::unique_ptr<State> state)
 {
   if (state_)
+  {
     state_->End();
+    state_.release();
+  }
   state_ = std::move(state);
   state_->Init();
 }

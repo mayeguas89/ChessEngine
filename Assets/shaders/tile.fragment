@@ -1,5 +1,7 @@
 #version 330 core
 
+uniform int active;
+
 in vec4 outColor;
 
 out vec4 colorOut;
@@ -7,4 +9,9 @@ out vec4 colorOut;
 void main()
 {
   colorOut = outColor;
+  if(active == 1)
+  {
+    colorOut = mix(vec4(1.f, 1.f, 0.f, 1.f), colorOut, 0.5f);
+    colorOut.a = 1.f;
+  }
 }

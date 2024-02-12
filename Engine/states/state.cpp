@@ -42,20 +42,29 @@ void GameInitState::Init()
   spdlog::info("Starting GameInitState");
   Engine::Instance().GetPlayerOne().Init();
   Engine::Instance().GetPlayerTwo().Init();
-  stateMachine.ChangeState(std::move(std::make_unique<PlayerOneState>(stateMachine)));
+  stateMachine.ChangeState(std::move(std::make_unique<PlayerOneSelectPieceState>(stateMachine)));
 }
 
 void GameInitState::Run() {}
 
 void GameInitState::End() {}
 
-void PlayerOneState::Init()
+void PlayerOneSelectPieceState::Init()
 {
-  spdlog::info("Starting PlayerOneState");
+  spdlog::info("Starting PlayerOneSelectPieceState");
 }
-void PlayerOneState::Run() {}
+void PlayerOneSelectPieceState::Run() {}
 
-void PlayerOneState::End() {}
+void PlayerOneSelectPieceState::End() {}
+
+void PlayerOneSelectDestinationState::Init()
+{
+  spdlog::info("Starting PlayerOneSelectDestinationState");
+}
+
+void PlayerOneSelectDestinationState::Run() {}
+
+void PlayerOneSelectDestinationState::End() {}
 
 void PlayerTwoState::Run() {}
 

@@ -73,6 +73,7 @@ public:
   unsigned int frameBufferId_ = 0;
 
 private:
+  std::shared_ptr<chess::Board> board_;
   chess::Player playerWhite_{Color::White};
   chess::Player playerBlack_{Color::Black};
   glm::vec2 calibrationCoordinates_;
